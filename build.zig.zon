@@ -1,0 +1,12 @@
+.{
+    .name = .winmd,
+    .fingerprint = 0x133b25ca1b2b02d9,
+    .version = "0.0.0",
+    .zig_version = "0.15.2",
+    .minimum_zig_version = "0.15.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
