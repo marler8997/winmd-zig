@@ -1832,30 +1832,35 @@ pub fn Map(table: Table) type {
     return @field(map, @tagName(table));
 }
 const map = struct {
-    // TODO: use links and make InterfaceImpl return an iterator
     pub const InterfaceImpl = struct {
-        store: std.AutoHashMapUnmanaged(u32, Type),
+        links: []const OptionalIndex(u32),
+        store: std.AutoHashMapUnmanaged(u32, u32),
         pub fn alloc(allocator: std.mem.Allocator, tables: *const Tables) error{OutOfMemory}!InterfaceImpl {
-            var result: InterfaceImpl = .{ .store = .{} };
-            errdefer result.deinit(allocator);
-            try result.store.ensureTotalCapacity(allocator, tables.row_counts.InterfaceImpl);
-            for (0..tables.row_counts.InterfaceImpl) |i| {
+            const links = try allocator.alloc(OptionalIndex(u32), tables.row_counts.InterfaceImpl);
+            errdefer allocator.free(links);
+            var store: std.AutoHashMapUnmanaged(u32, u32) = .{};
+            errdefer store.deinit(allocator);
+            try store.ensureTotalCapacity(allocator, tables.row_counts.InterfaceImpl);
+            // build the links in reverse so getIterator yields rows in table order
+            for (0..tables.row_counts.InterfaceImpl) |counter| {
+                const i = tables.row_counts.InterfaceImpl - 1 - counter;
                 const interface = tables.row(.InterfaceImpl, i);
-                const entry = result.store.getOrPutAssumeCapacity(interface.class.asIndex().?);
-                if (entry.found_existing) std.debug.panic(
-                    "class (TypeDef index {}) has multiple InterfaceImpl entries",
-                    .{interface.class.asIndex().?},
-                );
-                entry.value_ptr.* = interface.interface;
+                const entry = store.getOrPutAssumeCapacity(interface.class.asIndex().?);
+                links[i] = if (entry.found_existing) .fromIndex(entry.value_ptr.*) else .none;
+                entry.value_ptr.* = @intCast(i);
             }
-            return result;
+            return .{ .links = links, .store = store };
         }
         pub fn deinit(self: *InterfaceImpl, allocator: std.mem.Allocator) void {
             self.store.deinit(allocator);
+            allocator.free(self.links);
             self.* = undefined;
         }
-        pub fn get(self: *const InterfaceImpl, type_def_index: u32) ?Type {
-            return self.store.get(type_def_index);
+        pub fn getIterator(self: *const InterfaceImpl, type_def_index: u32) LinkIterator {
+            return .{
+                .links = self.links,
+                .index = if (self.store.get(type_def_index)) |i| .fromIndex(i) else .none,
+            };
         }
     };
 
