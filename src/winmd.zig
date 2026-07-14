@@ -1158,10 +1158,11 @@ pub fn tableOffsets(
         row_counts.GenericParamConstraint,
         row_counts.MethodSpec,
     });
-    const large_custom_attr_type = compositeLargeIndices(4, .{
+    const large_custom_attr_type = compositeLargeIndices(5, .{
+        0,
+        0,
         row_counts.MethodDef,
         row_counts.MemberRef,
-        0,
         0,
     });
     const large_resolution_scopes = compositeLargeIndices(4, .{
